@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zähler">
+<title>Zählerstände Haus</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--tx:#1f2937;--mu:#6b7280;--bd:#e5e7eb;--ac:#2563eb;--red:#dc2626;--grn:#16a34a}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;-webkit-text-size-adjust:100%}
+header{background:#111827;color:#fff;padding:14px 24px;padding-top:max(14px,env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+header h1{font-size:19px;margin:0;font-weight:600}
+header .sub{font-size:12px;color:#9ca3af}
+#syncbar{background:#fef3c7;color:#78350f;padding:8px 24px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+#syncbar.ok{background:#dcfce7;color:#14532d}
+#syncbar.warn{background:#fee2e2;color:#7f1d1d}
+#syncbar button{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:6px;border:1px solid currentColor;background:#fff;color:inherit;cursor:pointer;margin-left:4px}
+nav{display:flex;gap:4px;padding:0 24px;background:#1f2937;flex-wrap:wrap}
+nav button{background:none;border:none;color:#d1d5db;padding:11px 15px;cursor:pointer;font-size:14px;border-bottom:3px solid transparent}
+nav button.active{color:#fff;border-bottom-color:var(--ac)}
+main{padding:20px 24px;max-width:1500px;margin:auto;padding-bottom:max(20px,env(safe-area-inset-bottom))}
+.tab{display:none}.tab.active{display:block}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:14px}
+.kpi h3{margin:0 0 8px;font-size:14px;display:flex;align-items:center;gap:8px}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
+.kpi .big{font-size:24px;font-weight:600}
+.kpi .row{display:flex;justify-content:space-between;gap:8px;color:var(--mu);font-size:12.5px;margin-top:4px}
+.kpi .row b{color:var(--tx);font-weight:600;text-align:right}
+.kpi.derived{border-style:dashed}
+.up{color:var(--red)!important}.down{color:var(--grn)!important}
+.gen .up{color:var(--grn)!important}.gen .down{color:var(--red)!important}
+h2{font-size:16px;margin:0 0 12px}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+select,input,button.b{font:inherit;padding:6px 9px;border:1px solid var(--bd);border-radius:6px;background:#fff;color:var(--tx)}
+button.b{cursor:pointer;background:var(--ac);color:#fff;border-color:var(--ac)}
+button.b.sec,label.b.sec{background:#fff;color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:6px 9px;cursor:pointer}
+button.b.del{background:#fff;color:var(--red);border-color:#fca5a5;padding:3px 8px}
+.chartwrap{position:relative;width:100%;height:340px}
+canvas{width:100%;height:100%;display:block;touch-action:pan-y}
+.tip{position:absolute;pointer-events:none;background:rgba(17,24,39,.92);color:#fff;padding:7px 9px;border-radius:6px;font-size:12px;white-space:nowrap;display:none;z-index:5}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--mu)}
+.legend span{display:flex;align-items:center;gap:5px;cursor:pointer}
+.legend span.off{opacity:.35}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{background:#f9fafb;position:sticky;top:0;font-weight:600;z-index:2}
+.tblwrap{overflow:auto;max-height:560px}
+.tblwrap td:first-child,.tblwrap th:first-child{position:sticky;left:0;background:#fff;z-index:1}
+.tblwrap th:first-child{background:#f9fafb;z-index:3}
+td.warn{background:#fee2e2!important}
+td.chg{background:#fef3c7!important}
+.muted{color:var(--mu);font-size:12.5px}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;align-items:end}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--mu)}
+.msg{margin-top:10px;font-size:13px}
+.msg.err{color:var(--red)}.msg.ok{color:var(--grn)}
+.btnrow{margin-top:12px;display:flex;gap:8px}
+.pill{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:10px;padding:1px 8px;font-size:11.5px;margin-left:4px}
+.empty{text-align:center;padding:30px 16px}
+.empty button{margin-top:12px}
+@media(max-width:700px){
+  body{font-size:13px}
+  header{padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top))}
+  header h1{font-size:16px}
+  #saveinfo{display:none}
+  #syncbar{padding:8px 12px}
+  #syncbar button{padding:8px 10px;margin:2px 0 2px 4px}
+  nav{padding:0 4px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:0;z-index:10;scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  nav button{white-space:nowrap;padding:12px 10px;font-size:13.5px}
+  main{padding:10px}
+  .grid{grid-template-columns:1fr;gap:10px}
+  .card{padding:12px;margin-bottom:10px;border-radius:8px}
+  .kpi .big{font-size:21px}
+  .chartwrap{height:260px}
+  .toolbar{gap:8px}
+  .toolbar>label{display:flex;flex-direction:column;gap:3px;flex:1 1 45%;font-size:12px;color:var(--mu)}
+  .toolbar>label.chk{flex-direction:row;align-items:center;flex-basis:100%}
+  .toolbar>button,.toolbar>label.b{flex:1 1 100%;text-align:center;padding:10px}
+  select,input{font-size:16px;width:100%}
+  input[type=checkbox]{width:auto}
+  .form{grid-template-columns:1fr 1fr;gap:8px}
+  .form label.full{grid-column:1/-1}
+  button.b{font-size:15px;padding:10px 12px}
+  .btnrow button{flex:1}
+  th,td{padding:5px 6px;font-size:12px}
+  .tblwrap{max-height:70vh}
+  .legend{gap:8px 12px}
+  h2{font-size:15px}
+  .tip{font-size:11.5px;white-space:normal;max-width:230px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>🏠 Zählerstände Haus</h1><div class="sub" id="subinfo"></div></div>
+  <div class="sub" id="saveinfo"></div>
+</header>
+<div id="syncbar"><span id="syncstate"></span><span id="syncbtns"></span></div>
+<nav id="nav">
+  <button data-t="dash" class="active">Übersicht</button>
+  <button data-t="abl">➕ Ablesung</button>
+  <button data-t="verb">Monat/Jahr</button>
+  <button data-t="vgl">Jahresvergleich</button>
+  <button data-t="tag">Ø pro Tag</button>
+  <button data-t="pv">PV-Bilanz</button>
+  <button data-t="heat">Wärme</button>
+  <button data-t="wech">Zählerwechsel</button>
+  <button data-t="data">Daten</button>
+</nav>
+<main>
+
+<section class="tab active" id="t-dash">
+  <div id="emptybox" class="card empty" style="display:none">
+    <h2>Noch keine Daten geladen</h2>
+    <p class="muted">Bitte die Datei <b>zaehler_daten.json</b> aus deinem iCloud Drive laden.</p>
+    <button class="b" id="btnEmptyLoad">📂 Aus iCloud laden</button>
+  </div>
+  <div class="grid" id="kpis"></div>
+  <div class="card" id="yearcard">
+    <h2>Jahresverbräuche</h2>
+    <div class="tblwrap" id="yeartable"></div>
+    <p class="muted">* = Jahr nicht vollständig durch Ablesungen abgedeckt. Verbrauch zwischen zwei Ablesungen wird gleichmäßig auf die Tage verteilt. „Haus gesamt“ = Netzbezug + PV-Eigenverbrauch (PV ab 29.03.2023), inkl. Wallbox; „Haus ohne Wallbox“ = Haushaltsstrom. „Wärme gesamt“ = Gas in kWh + Heizstab.</p>
+  </div>
+</section>
+
+<section class="tab" id="t-verb">
+  <div class="card">
+    <div class="toolbar">
+      <label>Zähler <select id="verbMeter"></select></label>
+      <label>Auflösung <select id="verbRes"><option value="m">Monat</option><option value="y">Jahr</option></select></label>
+      <label>Ab Jahr <select id="verbFrom"></select></label>
+    </div>
+    <div class="chartwrap"><canvas id="cVerb"></canvas><div class="tip"></div></div>
+  </div>
+  <div class="card"><h2>Monatswerte</h2><div class="tblwrap" id="monthtable"></div></div>
+</section>
+
+<section class="tab" id="t-vgl">
+  <div class="card">
+    <div class="toolbar"><label>Zähler <select id="vglMeter"></select></label>
+      <label class="chk"><input type="checkbox" id="vglCum"> kumuliert über das Jahr</label></div>
+    <div class="chartwrap"><canvas id="cVgl"></canvas><div class="tip"></div></div>
+    <div class="legend" id="lVgl"></div>
+    <p class="muted">Unvollständige Monate werden ausgeblendet. Antippen/Klick auf ein Jahr blendet es ein/aus.</p>
+  </div>
+</section>
+
+<section class="tab" id="t-tag">
+  <div class="card">
+    <div class="toolbar"><label>Zähler <select id="tagMeter"></select></label>
+      <label>Ab Jahr <select id="tagFrom"></select></label></div>
+    <h2>Ø Verbrauch pro Tag je Ablese-Intervall</h2>
+    <div class="chartwrap"><canvas id="cTag"></canvas><div class="tip"></div></div>
+  </div>
+  <div class="card"><h2>Intervalle</h2><div class="tblwrap" id="inttable"></div></div>
+</section>
+
+<section class="tab" id="t-pv">
+  <div class="card">
+    <h2>PV-Bilanz pro Monat</h2>
+    <div class="chartwrap"><canvas id="cPv"></canvas><div class="tip"></div></div>
+    <div class="legend" id="lPv"></div>
+    <p class="muted">Eigenverbrauch = PV-Erzeugung − Einspeisung · Hausverbrauch = Netzbezug + Eigenverbrauch (inkl. Wallbox und Heizstab) · Autarkie = Eigenverbrauch / Hausverbrauch · Eigenverbrauchsquote = Eigenverbrauch / PV-Erzeugung</p>
+  </div>
+  <div class="card"><h2>PV-Bilanz pro Jahr</h2><div class="tblwrap" id="pvtable"></div></div>
+</section>
+
+<section class="tab" id="t-heat">
+  <div class="card">
+    <h2>Wärme (Heizung + Warmwasser) pro Monat in kWh</h2>
+    <div class="toolbar">
+      <label>Ab Jahr <select id="heatFrom"></select></label>
+      <label class="chk"><input type="checkbox" id="heatHs" checked> Heizstab einbeziehen</label>
+    </div>
+    <div class="chartwrap"><canvas id="cHeat"></canvas><div class="tip"></div></div>
+    <div class="legend"><span><span class="dot" style="background:#ea580c"></span>Gas (kWh)</span><span><span class="dot" style="background:#ef4444"></span>Heizstab (kWh)</span></div>
+    <p class="muted">Gas kWh = m³ × <span id="heatFac"></span> kWh/m³ (Faktor unter „Daten“ an die Gasrechnung anpassen). Der Heizstab-Strom ist zugleich im Hausstrom enthalten.</p>
+  </div>
+  <div class="card"><h2>Wärme pro Jahr</h2><div class="tblwrap" id="heattable"></div></div>
+</section>
+
+<section class="tab" id="t-abl">
+  <div class="card">
+    <h2>Neue Ablesung erfassen</h2>
+    <div class="form" id="newform"></div>
+    <div class="btnrow"><button class="b" id="btnAdd">Speichern</button><button class="b sec" id="btnClear">Leeren</button></div>
+    <div class="msg" id="addmsg"></div>
+    <p class="muted">Leere Felder = nicht abgelesen. Gibt es für das Datum schon eine Ablesung, werden die Werte dort ergänzt/überschrieben. Ist ein Wert kleiner als der vorherige, bitte vorher unter „Zählerwechsel“ den Wechsel eintragen.</p>
+  </div>
+  <div class="card">
+    <h2>Alle Ablesungen <span class="pill" id="cntAbl"></span></h2>
+    <p class="muted">Gelb = erster Wert nach Zählerwechsel · Rot = kleiner als vorheriger Wert ohne erfassten Wechsel (wird ignoriert)</p>
+    <div class="tblwrap" id="abltable"></div>
+  </div>
+</section>
+
+<section class="tab" id="t-wech">
+  <div class="card">
+    <h2>Zählerwechsel erfassen</h2>
+    <div class="form">
+      <label class="full">Zähler <select id="wMeter"></select></label>
+      <label class="full">Datum des Wechsels <input type="date" id="wDate"></label>
+      <label>Endstand alt <input type="text" inputmode="decimal" id="wOld" placeholder="leer = letzte Abl."></label>
+      <label>Anfangsstand neu <input type="text" inputmode="decimal" id="wNew" value="0"></label>
+      <label class="full">Notiz <input type="text" id="wNote"></label>
+    </div>
+    <div class="btnrow"><button class="b" id="btnW">Zählerwechsel speichern</button></div>
+    <div class="msg" id="wmsg"></div>
+    <p class="muted">Ablesungen bis einschließlich Wechseldatum gehören zum alten Zähler, alle späteren zum neuen. Verbrauch im Wechsel-Intervall = (Endstand alt − letzte Ablesung alt) + (erste Ablesung neu − Anfangsstand neu).</p>
+  </div>
+  <div class="card"><h2>Erfasste Zählerwechsel</h2><div class="tblwrap" id="wtable"></div></div>
+</section>
+
+<section class="tab" id="t-data">
+  <div class="card">
+    <h2>Speicherung in iCloud</h2>
+    <p>Alle Zählerstände stehen in der Datei <b>zaehler_daten.json</b> in deinem iCloud Drive. Jedes Gerät liest und schreibt diese Datei – Bedienung über die farbige Leiste oben. <span id="datastand"></span></p>
+    <ul class="muted" style="padding-left:18px;margin-top:0">
+      <li><b>Mac mit Chrome oder Edge:</b> einmal „Datei verbinden“ → zaehler_daten.json im iCloud Drive wählen. Danach wird jede Änderung automatisch gespeichert.</li>
+      <li><b>iPhone / iPad (Safari) und Safari am Mac:</b> „📂 Laden“ → Datei in iCloud Drive wählen. Nach neuen Einträgen „💾 In iCloud sichern“ → „In Dateien sichern“ → iCloud-Ordner wählen → <b>Ersetzen</b>.</li>
+      <li>Zusätzlich bleibt auf jedem Gerät eine lokale Kopie im Browser.</li>
+    </ul>
+    <div class="toolbar">
+      <button class="b sec" id="btnExpJson">Datendatei herunterladen (JSON)</button>
+      <label class="b sec">Datendatei laden (JSON)<input type="file" id="impJson" style="display:none"></label>
+      <button class="b sec" id="btnExpCsv">Ablesungen als CSV</button>
+      <button class="b sec" id="btnExpMonth">Monatsverbräuche als CSV</button>
+      <button class="b sec" id="btnHtml">HTML mit aktuellen Daten speichern</button>
+      <button class="b del" id="btnReset">Lokale Kopie löschen</button>
+    </div>
+    <div class="msg" id="datamsg"></div>
+  </div>
+  <div class="card">
+    <h2>Einstellungen</h2>
+    <div class="form">
+      <label class="full">Gas-Umrechnung kWh pro m³ (Brennwert × Zustandszahl, s. Gasrechnung) <input type="text" inputmode="decimal" id="sGas"></label>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+/*__DATA_START__*/
+const ORIGINAL = {"readings":[],"changes":[],"settings":{"gasFactor":10.3}};
+/*__DATA_END__*/
+const LS_KEY = 'zaehlerDashboard_v3';
+const METERS = [
+  {id:'pv',name:'PV-Erzeugung',unit:'kWh',color:'#f59e0b',gen:true},
+  {id:'strom',name:'Strom Netzbezug',unit:'kWh',color:'#2563eb'},
+  {id:'einsp',name:'Einspeisung',unit:'kWh',color:'#10b981',gen:true},
+  {id:'wallbox',name:'Wallbox',unit:'kWh',color:'#8b5cf6'},
+  {id:'heizstab',name:'Heizstab',unit:'kWh',color:'#ef4444'},
+  {id:'gas',name:'Gas',unit:'m³',color:'#f97316'},
+  {id:'wasser',name:'Trinkwasser',unit:'m³',color:'#0ea5e9'},
+  {id:'hausges',name:'Strom Haus gesamt',unit:'kWh',color:'#1e3a8a',derived:true,info:'Netzbezug + PV-Eigenverbrauch, inkl. Wallbox'},
+  {id:'hausohne',name:'Strom Haus ohne Wallbox',unit:'kWh',color:'#0891b2',derived:true,info:'Haus gesamt − Wallbox'},
+  {id:'gaskwh',name:'Gas in kWh',unit:'kWh',color:'#ea580c',derived:true,nocard:true,info:'Gas m³ × Faktor'},
+  {id:'waerme',name:'Wärme gesamt (Gas + Heizstab)',unit:'kWh',color:'#b91c1c',derived:true,info:'Gas in kWh + Heizstab'}
+];
+const REAL = METERS.filter(m=>!m.derived);
+const MM = Object.fromEntries(METERS.map(m=>[m.id,m]));
+const MON = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+let DB;
+const $=s=>document.querySelector(s);
+const num=s=>{s=String(s).trim().replace(/\s/g,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');return s===''?NaN:+s;};
+const clone=o=>JSON.parse(JSON.stringify(o));
+function norm(d){if(!d.changes)d.changes=[];if(!d.settings)d.settings={gasFactor:10.3};if(!d.settings.gasFactor)d.settings.gasFactor=10.3;return d;}
+
+/* ---------- lokale Kopie ---------- */
+function load(){
+  try{const s=localStorage.getItem(LS_KEY)||localStorage.getItem('zaehlerDashboard_v2'); if(s){const d=JSON.parse(s);if(d.readings&&(d.readings.length||!ORIGINAL.readings.length)){DB=norm(d);return;}}}catch(e){}
+  DB=norm(clone(ORIGINAL));
+}
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(DB));}catch(e){}}
+
+/* ---------- Hilfsfunktionen ---------- */
+const DAY=86400000;
+const toDay=s=>Math.round(Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/DAY);
+const fromDay=n=>new Date(n*DAY).toISOString().slice(0,10);
+const deDate=s=>s.slice(8,10)+'.'+s.slice(5,7)+'.'+s.slice(0,4);
+const deTime=iso=>iso?new Date(iso).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'–';
+function fmt(v,d){if(v==null||isNaN(v))return '–';if(d==null)d=Math.abs(v)>=100?0:(Math.abs(v)>=10?1:2);return v.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});}
+const sortReadings=()=>DB.readings.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
+const daysInMonth=k=>new Date(Date.UTC(+k.slice(0,4),+k.slice(5,7),0)).getUTCDate();
+const daysInYear=y=>((y%4==0&&y%100!=0)||y%400==0)?366:365;
+const isMobile=()=>window.innerWidth<700;
+const todayLocal=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+
+/* ---------- Kernberechnung ---------- */
+let CALC={};
+function aggr(o){
+  const months={},years={},mDays={},yDays={};let first=null,last=null;
+  for(const [d,v] of o.daily){const s=fromDay(d),mk=s.slice(0,7),yk=s.slice(0,4);
+    months[mk]=(months[mk]||0)+v; years[yk]=(years[yk]||0)+v; mDays[mk]=(mDays[mk]||0)+1; yDays[yk]=(yDays[yk]||0)+1;
+    if(first==null||d<first)first=d; if(last==null||d>last)last=d;}
+  if(last!=null)last+=1;
+  return Object.assign(o,{months,years,mDays,yDays,first,last});
+}
+const derived=daily=>aggr({pts:[],flags:{},daily,ints:[]});
+function compute(){
+  sortReadings(); CALC={};
+  for(const m of REAL){
+    const pts=DB.readings.filter(r=>r.v[m.id]!=null&&r.v[m.id]!=='').map(r=>({d:r.d,raw:+r.v[m.id]}));
+    const chg=DB.changes.filter(c=>c.meter===m.id).sort((a,b)=>a.date<b.date?-1:1);
+    let off=0,ci=0,lastRaw=null; const out=[]; const flags={};
+    for(const p of pts){
+      let isFirstNew=false;
+      while(ci<chg.length&&p.d>chg[ci].date){
+        const c=chg[ci]; const oldEnd=(c.oldEnd==null||c.oldEnd==='')?(lastRaw??0):+c.oldEnd;
+        off+=oldEnd-(+c.newStart||0); lastRaw=+c.newStart||0; ci++; isFirstNew=true;
+      }
+      if(isFirstNew) flags[p.d]='chg';
+      if(lastRaw!=null && p.raw<lastRaw-1e-9){flags[p.d]='warn';continue;}
+      out.push({d:p.d,day:toDay(p.d),raw:p.raw,cum:p.raw+off}); lastRaw=p.raw;
+    }
+    const daily=new Map(), ints=[];
+    for(let i=1;i<out.length;i++){
+      const a=out[i-1],b=out[i]; const n=b.day-a.day; if(n<=0)continue;
+      const r=(b.cum-a.cum)/n; ints.push({from:a.d,to:b.d,days:n,delta:b.cum-a.cum,rate:r});
+      for(let d=a.day;d<b.day;d++) daily.set(d,r);
+    }
+    CALC[m.id]=aggr({pts:out,flags,daily,ints});
+  }
+  const hg=new Map(),ho=new Map();
+  for(const [d,s] of CALC.strom.daily){
+    const p=CALC.pv.daily.get(d),e=CALC.einsp.daily.get(d);
+    const v=s+((p!=null&&e!=null)?Math.max(0,p-e):0); hg.set(d,v);
+    const w=CALC.wallbox.daily.get(d); ho.set(d,w!=null?Math.max(0,v-w):v);
+  }
+  CALC.hausges=derived(hg); CALC.hausohne=derived(ho);
+  const gk=new Map(),wm=new Map(),f=DB.settings.gasFactor;
+  for(const [d,g] of CALC.gas.daily){gk.set(d,g*f);wm.set(d,g*f+(CALC.heizstab.daily.get(d)||0));}
+  CALC.gaskwh=derived(gk); CALC.waerme=derived(wm);
+}
+function sumRange(id,d0,d1){const c=CALC[id];let s=0,n=0;for(let d=d0;d<d1;d++){const v=c.daily.get(d);if(v!=null){s+=v;n++;}}return {s,n};}
+function allYears(){const s=new Set();for(const m of METERS)Object.keys(CALC[m.id].years).forEach(y=>s.add(y));return [...s].sort();}
+
+/* ---------- Charts (ohne externe Bibliotheken) ---------- */
+function setupCanvas(cv){const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return {ctx,W:r.width,H:r.height};}
+function niceMax(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));const f=v/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p;}
+function pad(W,b){return {l:W<500?44:62,r:8,t:12,b};}
+function axes(ctx,W,H,P,min,max,unit){
+  ctx.font='11px -apple-system,Segoe UI,Arial';ctx.fillStyle='#6b7280';ctx.strokeStyle='#eef0f3';ctx.lineWidth=1;ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let i=0;i<=5;i++){const v=min+(max-min)*i/5,y=P.t+(H-P.t-P.b)*(1-i/5);ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(W-P.r,y);ctx.stroke();ctx.fillText(fmt(v,max-min<5?1:0),P.l-5,y);}
+  ctx.save();ctx.translate(9,P.t+(H-P.t-P.b)/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText(unit,0,0);ctx.restore();
+}
+function attachTip(cv,hitFn,redraw){
+  const tip=cv.parentElement.querySelector('.tip');
+  const show=(cx,cy)=>{const r=cv.getBoundingClientRect();const x=cx-r.left,y=cy-r.top;const h=hitFn(x,y);
+    redraw(h);if(!h){tip.style.display='none';return;}tip.innerHTML=h.html;tip.style.display='block';
+    const tw=tip.offsetWidth;tip.style.left=Math.min(Math.max(0,x+12),r.width-tw-4)+'px';tip.style.top=Math.max(0,y-14-tip.offsetHeight)+'px';};
+  cv.onmousemove=e=>show(e.clientX,e.clientY);
+  cv.onmouseleave=()=>{tip.style.display='none';redraw(null);};
+  const tch=e=>{const t=e.touches[0];if(t)show(t.clientX,t.clientY);};
+  cv.ontouchstart=tch;cv.ontouchmove=tch;
+}
+function barChart(cv,labels,series,unit,opts={}){
+  const draw=hl=>{
+    const {ctx,W,H}=setupCanvas(cv);const P=pad(W,labels.length>12?50:28);
+    const stacked=opts.stacked;let max=0,min=0;
+    labels.forEach((_,i)=>{if(stacked){let p=0,n=0;series.forEach(s=>{const v=s.data[i]||0;v>=0?p+=v:n+=v;});max=Math.max(max,p);min=Math.min(min,n);}else series.forEach(s=>{const v=s.data[i];if(v!=null){max=Math.max(max,v);min=Math.min(min,v);}});});
+    max=niceMax(max);min=min<0?-niceMax(-min):0;axes(ctx,W,H,P,min,max,unit);
+    const pw=W-P.l-P.r,ph=H-P.t-P.b,gw=pw/Math.max(1,labels.length),y=v=>P.t+ph*(1-(v-min)/(max-min));
+    const ns=stacked?1:series.length,bw=Math.max(1,Math.min(40,gw*0.8/ns));
+    labels.forEach((lb,i)=>{
+      const x0=P.l+gw*i+(gw-bw*ns)/2;let accP=0,accN=0;
+      if(hl&&hl.i===i){ctx.fillStyle='rgba(37,99,235,.10)';ctx.fillRect(P.l+gw*i,P.t,gw,ph);}
+      series.forEach((s,k)=>{const v=s.data[i];if(v==null)return;let yt,yb;
+        if(stacked){if(v>=0){yb=y(accP);accP+=v;yt=y(accP);}else{yt=y(accN);accN+=v;yb=y(accN);}}else{yt=y(Math.max(v,0));yb=y(Math.min(v,0));}
+        ctx.fillStyle=s.color;ctx.globalAlpha=s.partial&&s.partial[i]?0.45:1;ctx.fillRect(stacked?x0:x0+k*bw,yt,bw-(stacked||ns==1?0:1),Math.max(1,yb-yt));ctx.globalAlpha=1;});
+    });
+    ctx.fillStyle='#6b7280';ctx.font='11px -apple-system,Segoe UI,Arial';ctx.textAlign='center';ctx.textBaseline='top';
+    const step=Math.max(1,Math.ceil(labels.length/(pw/(labels.length>12?22:40))));
+    labels.forEach((lb,i)=>{if(i%step)return;const x=P.l+gw*(i+.5);if(labels.length>12){ctx.save();ctx.translate(x,H-P.b+6);ctx.rotate(-Math.PI/4);ctx.textAlign='right';ctx.fillText(lb,0,0);ctx.restore();}else ctx.fillText(lb,x,H-P.b+6);});
+    cv._geo={P,gw,n:labels.length};
+  };
+  draw(null);
+  attachTip(cv,(x)=>{const g=cv._geo;const i=Math.floor((x-g.P.l)/g.gw);if(i<0||i>=g.n)return null;
+    let h='<b>'+labels[i]+'</b>';series.forEach(s=>{if(s.data[i]!=null)h+='<br><span class="dot" style="background:'+s.color+'"></span> '+s.name+': '+fmt(s.data[i])+' '+unit+(s.partial&&s.partial[i]?' (unvollst.)':'');});
+    if(opts.extra)h+=opts.extra(i);return {i,html:h};},draw);
+}
+function lineChart(cv,series,unit,opts){
+  const draw=hl=>{
+    const {ctx,W,H}=setupCanvas(cv);const P=pad(W,28);
+    let xmin=opts.xmin,xmax=opts.xmax,max=0;series.forEach(s=>{if(s.hidden)return;s.data.forEach(p=>{if(p[1]!=null)max=Math.max(max,p[1]);});});
+    max=niceMax(max);axes(ctx,W,H,P,0,max,unit);
+    const pw=W-P.l-P.r,ph=H-P.t-P.b,X=v=>P.l+pw*(v-xmin)/(xmax-xmin),Y=v=>P.t+ph*(1-v/max);
+    ctx.fillStyle='#6b7280';ctx.font='11px -apple-system,Segoe UI,Arial';ctx.textAlign='center';ctx.textBaseline='top';
+    const tstep=Math.max(1,Math.ceil(opts.ticks.length/Math.max(1,pw/34)));opts.ticks.forEach((t,i)=>{if(i%tstep==0)ctx.fillText(t[1],X(t[0]),H-P.b+6);});
+    series.forEach(s=>{if(s.hidden)return;ctx.strokeStyle=s.color;ctx.lineWidth=s.width||2;ctx.beginPath();let st=false;
+      s.data.forEach(p=>{if(p[1]==null){st=false;return;}const x=X(p[0]),y=Y(p[1]);st?ctx.lineTo(x,y):ctx.moveTo(x,y);st=true;});ctx.stroke();});
+    if(hl){ctx.strokeStyle='#9ca3af';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(X(hl.x),P.t);ctx.lineTo(X(hl.x),H-P.b);ctx.stroke();ctx.setLineDash([]);}
+    cv._geo={P,pw,xmin,xmax};
+  };
+  draw(null);
+  attachTip(cv,x=>{const g=cv._geo;const xv=g.xmin+(x-g.P.l)/g.pw*(g.xmax-g.xmin);if(xv<g.xmin||xv>g.xmax)return null;return opts.tip(xv);},draw);
+}
+
+/* ---------- Übersicht ---------- */
+function renderDash(){
+  const empty=!DB.readings.length;
+  $('#emptybox').style.display=empty?'block':'none';$('#yearcard').style.display=empty?'none':'block';
+  $('#subinfo').textContent=empty?'Keine Daten':DB.readings.length+' Ablesungen · '+deDate(DB.readings[0].d)+' – '+deDate(DB.readings.at(-1).d);
+  $('#saveinfo').textContent=DB.savedAt?'Datenstand: '+deTime(DB.savedAt):'';
+  $('#datastand').textContent=DB.savedAt?'Aktueller Datenstand: '+deTime(DB.savedAt)+'.':'';
+  if(empty){$('#kpis').innerHTML='';return;}
+  let h='';
+  for(const m of METERS){const c=CALC[m.id];if(c.last==null||m.nocard)continue;
+    const end=c.last,yr=+fromDay(end-1).slice(0,4);
+    const l365=sumRange(m.id,end-365,end);
+    const jan1=toDay(yr+'-01-01'),ytd=sumRange(m.id,jan1,end);
+    const pj1=toDay((yr-1)+'-01-01'),pEnd=pj1+(end-jan1),pytd=sumRange(m.id,pj1,pEnd);
+    const prevYear=c.years[yr-1];
+    const diff=pytd.n>=(end-jan1)*0.95&&pytd.s>0?(ytd.s/pytd.s-1)*100:null;
+    const rawLast=m.derived?null:DB.readings.filter(r=>r.v[m.id]!=null).at(-1);
+    let gasKwh='';if(m.id==='gas'){gasKwh='<div class="row"><span>≈ Ø/Tag in kWh</span><b>'+fmt(l365.s/Math.max(l365.n,1)*DB.settings.gasFactor,1)+' kWh</b></div><div class="row"><span>≈ letzte 365 Tage in kWh</span><b>'+fmt(l365.s*DB.settings.gasFactor,0)+' kWh</b></div>';}
+    h+=`<div class="card kpi ${m.gen?'gen':''} ${m.derived?'derived':''}"><h3><span class="dot" style="background:${m.color}"></span>${m.name}</h3>
+      <div class="big">${fmt(l365.n?l365.s/l365.n:null,2)} <span style="font-size:13px;font-weight:400">${m.unit}/Tag</span></div>
+      <div class="muted">Ø der letzten ${l365.n} Tage</div>
+      <div class="row"><span>Letzte 365 Tage</span><b>${fmt(l365.s)} ${m.unit}</b></div>
+      <div class="row"><span>${yr} bis ${deDate(fromDay(end))}</span><b>${fmt(ytd.s)} ${m.unit}</b></div>
+      <div class="row"><span>Vorjahr gleicher Zeitraum</span><b>${pytd.n?fmt(pytd.s)+' '+m.unit:'–'}</b></div>
+      ${diff!=null?`<div class="row"><span>Veränderung</span><b class="${diff>0?'up':'down'}">${diff>0?'+':''}${fmt(diff,1)} %</b></div>`:''}
+      <div class="row"><span>Gesamtjahr ${yr-1}</span><b>${prevYear!=null?fmt(prevYear)+' '+m.unit:'–'}</b></div>
+      ${gasKwh}
+      ${rawLast?`<div class="row"><span>Letzter Zählerstand</span><b>${fmt(+rawLast.v[m.id],1)} (${deDate(rawLast.d)})</b></div>`:`<div class="row"><span>${m.info}</span></div>`}</div>`;}
+  $('#kpis').innerHTML=h;
+  const ys=allYears();
+  let t='<table><tr><th>Jahr</th>'+METERS.map(m=>`<th>${m.name}<br><span class="muted">${m.unit}</span></th>`).join('')+'</tr>';
+  ys.slice().reverse().forEach(y=>{t+='<tr><td>'+y+'</td>';METERS.forEach(m=>{const c=CALC[m.id];const v=c.years[y];const part=v!=null&&c.yDays[y]<daysInYear(+y);t+='<td>'+(v!=null?fmt(v,0)+(part?'*':''):'')+'</td>';});t+='</tr>';});
+  $('#yeartable').innerHTML=t+'</table>';
+}
+
+/* ---------- Verbrauch ---------- */
+function meterOptions(sel,realOnly){$(sel).innerHTML=(realOnly?REAL:METERS).map(m=>`<option value="${m.id}">${m.name} (${m.unit})</option>`).join('');}
+function yearOptions(sel,def){const ys=allYears();$(sel).innerHTML=ys.map(y=>`<option ${y==def?'selected':''}>${y}</option>`).join('');}
+function renderVerb(){
+  const id=$('#verbMeter').value,m=MM[id],c=CALC[id],res=$('#verbRes').value,from=$('#verbFrom').value||'0';
+  let labels=[],data=[],partial=[];
+  if(res==='y'){Object.keys(c.years).sort().filter(y=>y>=from).forEach(y=>{labels.push(y);data.push(c.years[y]);partial.push(c.yDays[y]<daysInYear(+y));});}
+  else{Object.keys(c.months).sort().filter(k=>k.slice(0,4)>=from).forEach(k=>{labels.push(MON[+k.slice(5)-1]+' '+k.slice(2,4));data.push(c.months[k]);partial.push(c.mDays[k]<daysInMonth(k));});}
+  barChart($('#cVerb'),labels,[{name:m.name,color:m.color,data,partial}],m.unit,{extra:i=>{const d=res==='y'?c.yDays[labels[i]]:null;return d?'<br>Ø/Tag: '+fmt(data[i]/d,2)+' '+m.unit:'';}});
+  const ys=Object.keys(c.years).sort().reverse();
+  let t='<table><tr><th>Jahr</th>'+MON.map(x=>'<th>'+x+'</th>').join('')+'<th>Summe</th><th>Ø/Tag</th></tr>';
+  ys.forEach(y=>{t+='<tr><td>'+y+'</td>';for(let i=1;i<=12;i++){const k=y+'-'+String(i).padStart(2,'0');const v=c.months[k];t+='<td>'+(v!=null?fmt(v,v<10?1:0)+(c.mDays[k]<daysInMonth(k)?'*':''):'')+'</td>';}
+    t+='<td><b>'+fmt(c.years[y],0)+'</b></td><td>'+fmt(c.years[y]/c.yDays[y],2)+'</td></tr>';});
+  $('#monthtable').innerHTML=t+'</table><p class="muted">Einheit: '+m.unit+' · * = Monat nur teilweise abgedeckt</p>';
+}
+
+/* ---------- Jahresvergleich ---------- */
+const PAL=['#94a3b8','#64748b','#a78bfa','#f472b6','#fb923c','#facc15','#4ade80','#2dd4bf','#38bdf8','#6366f1','#e11d48','#111827'];
+let vglHidden={};
+function renderVgl(){
+  const id=$('#vglMeter').value,m=MM[id],c=CALC[id],cum=$('#vglCum').checked;
+  const ys=Object.keys(c.years).sort();
+  const series=ys.map((y,i)=>{let acc=0;const data=[];for(let k=1;k<=12;k++){const key=y+'-'+String(k).padStart(2,'0');const v=c.months[key];
+      if(v==null||c.mDays[key]<daysInMonth(key)*0.9){data.push(null);if(v!=null)acc+=v;continue;}acc+=v;data.push(cum?acc:v);}
+    const last=i===ys.length-1;return {name:y,color:last?'#dc2626':PAL[(ys.length-1-i)%PAL.length],width:last?3.5:(i===ys.length-2?2.5:1.6),data,hidden:vglHidden[id+y]};});
+  lineChart($('#cVgl'),series.map(s=>({...s,data:s.data.map((v,i)=>[i,v])})),m.unit,{xmin:-0.3,xmax:11.3,ticks:MON.map((x,i)=>[i,x]),
+    tip:xv=>{const i=Math.round(xv);if(i<0||i>11)return null;let h='<b>'+MON[i]+'</b>';series.slice().reverse().forEach(s=>{if(!s.hidden&&s.data[i]!=null)h+='<br><span class="dot" style="background:'+s.color+'"></span> '+s.name+': '+fmt(s.data[i])+' '+m.unit;});return {x:i,html:h};}});
+  $('#lVgl').innerHTML=series.map(s=>`<span data-y="${s.name}" class="${s.hidden?'off':''}"><span class="dot" style="background:${s.color}"></span>${s.name}</span>`).join('');
+  $('#lVgl').querySelectorAll('span[data-y]').forEach(el=>el.onclick=()=>{vglHidden[id+el.dataset.y]=!vglHidden[id+el.dataset.y];renderVgl();});
+}
+
+/* ---------- Ø pro Tag ---------- */
+function renderTag(){
+  const id=$('#tagMeter').value,m=MM[id],c=CALC[id],fy=$('#tagFrom').value;
+  if(!fy){$('#inttable').innerHTML='';return;}
+  const from=toDay(fy+'-01-01');
+  const ints=c.ints.filter(x=>toDay(x.to)>from);
+  if(!ints.length){$('#inttable').innerHTML='';return;}
+  const data=[];ints.forEach(x=>{data.push([Math.max(toDay(x.from),from),x.rate]);data.push([toDay(x.to),x.rate]);});
+  const xmin=Math.max(toDay(ints[0].from),from),xmax=toDay(ints.at(-1).to);
+  const ticks=[];for(let y=+fromDay(xmin).slice(0,4);y<=+fromDay(xmax).slice(0,4)+1;y++){const d=toDay(y+'-01-01');if(d>=xmin&&d<=xmax)ticks.push([d,String(y)]);}
+  if(ticks.length<3){ticks.length=0;for(let d=xmin;d<=xmax;d+=Math.max(1,Math.ceil((xmax-xmin)/5)))ticks.push([d,deDate(fromDay(d)).slice(0,6)]);}
+  lineChart($('#cTag'),[{name:m.name,color:m.color,data,width:2}],m.unit+'/Tag',{xmin,xmax,ticks,
+    tip:xv=>{const x=ints.find(t=>toDay(t.from)<=xv&&toDay(t.to)>=xv);if(!x)return null;return {x:xv,html:'<b>'+deDate(x.from)+' – '+deDate(x.to)+'</b><br>'+x.days+' Tage · '+fmt(x.delta)+' '+m.unit+'<br>Ø '+fmt(x.rate,2)+' '+m.unit+'/Tag'};}});
+  let t='<table><tr><th>Von</th><th>Bis</th><th>Tage</th><th>'+m.unit+'</th><th>Ø/Tag</th></tr>';
+  c.ints.slice().reverse().forEach(x=>t+=`<tr><td>${deDate(x.from)}</td><td>${deDate(x.to)}</td><td>${x.days}</td><td>${fmt(x.delta,1)}</td><td>${fmt(x.rate,2)}</td></tr>`);
+  $('#inttable').innerHTML=t+'</table>';
+}
+
+/* ---------- PV ---------- */
+let pvHidden={};
+function renderPv(){
+  const pv=CALC.pv,es=CALC.einsp,st=CALC.strom,wb=CALC.wallbox;
+  const keys=Object.keys(pv.months).sort().filter(k=>es.months[k]!=null&&st.months[k]!=null);
+  const labels=keys.map(k=>MON[+k.slice(5)-1]+' '+k.slice(2,4));
+  const eig=keys.map(k=>Math.max(0,pv.months[k]-es.months[k])),ein=keys.map(k=>es.months[k]),bez=keys.map(k=>st.months[k]);
+  const S=[{id:'eig',name:'PV-Eigenverbrauch',color:'#f59e0b',data:eig},{id:'ein',name:'Einspeisung',color:'#10b981',data:ein},{id:'bez',name:'Netzbezug',color:'#2563eb',data:bez}];
+  barChart($('#cPv'),labels,S.map(s=>pvHidden[s.id]?{...s,data:s.data.map(()=>null)}:s),'kWh',{stacked:true,extra:i=>{const hv=bez[i]+eig[i],w=wb.months[keys[i]]||0;
+    return '<br>Hausverbrauch: '+fmt(hv)+' kWh<br>davon Wallbox: '+fmt(w)+' kWh<br>Haus ohne Wallbox: '+fmt(hv-w)+' kWh<br>Autarkie: '+fmt(hv?eig[i]/hv*100:null,0)+' %';}});
+  $('#lPv').innerHTML=S.map(s=>`<span data-s="${s.id}" class="${pvHidden[s.id]?'off':''}"><span class="dot" style="background:${s.color}"></span>${s.name}</span>`).join('');
+  $('#lPv').querySelectorAll('span[data-s]').forEach(el=>el.onclick=()=>{pvHidden[el.dataset.s]=!pvHidden[el.dataset.s];renderPv();});
+  const ys=Object.keys(pv.years).sort().reverse();
+  let t='<table><tr><th>Jahr</th><th>PV-Erzeugung</th><th>Einspeisung</th><th>Eigenverbrauch</th><th>Netzbezug</th><th>Haus gesamt</th><th>davon Wallbox</th><th>Haus ohne WB</th><th>Autarkie</th><th>EV-Quote</th></tr>';
+  ys.forEach(y=>{
+    let p=0,e=0,b=0,w=0,n=0;for(const [d,v] of pv.daily){if(fromDay(d).slice(0,4)!==y)continue;const ev=es.daily.get(d),bv=st.daily.get(d);if(ev==null||bv==null)continue;p+=v;e+=ev;b+=bv;w+=wb.daily.get(d)||0;n++;}
+    if(!n)return;
+    const eg=Math.max(0,p-e),hv=b+eg;
+    t+=`<tr><td>${y}${n<daysInYear(+y)?'*':''}</td><td>${fmt(p,0)}</td><td>${fmt(e,0)}</td><td>${fmt(eg,0)}</td><td>${fmt(b,0)}</td><td>${fmt(hv,0)}</td><td>${fmt(w,0)}</td><td>${fmt(hv-w,0)}</td><td>${fmt(hv?eg/hv*100:null,0)} %</td><td>${fmt(p?eg/p*100:null,0)} %</td></tr>`;});
+  $('#pvtable').innerHTML=t+'</table><p class="muted">Alle Werte in kWh · * = Jahr unvollständig (nur Tage mit PV-, Einspeise- und Bezugswerten) · EV-Quote = Eigenverbrauchsquote</p>';
+}
+
+/* ---------- Wärme ---------- */
+function renderHeat(){
+  const g=CALC.gaskwh,h=CALC.heizstab,withHs=$('#heatHs').checked,from=$('#heatFrom').value||'0';
+  $('#heatFac').textContent=fmt(DB.settings.gasFactor,2);
+  const keys=Object.keys(g.months).sort().filter(k=>k.slice(0,4)>=from);
+  const labels=keys.map(k=>MON[+k.slice(5)-1]+' '+k.slice(2,4));
+  const gd=keys.map(k=>g.months[k]),hd=keys.map(k=>withHs?(h.months[k]??null):null);
+  const part=keys.map(k=>g.mDays[k]<daysInMonth(k));
+  barChart($('#cHeat'),labels,[{name:'Gas',color:'#ea580c',data:gd,partial:part},{name:'Heizstab',color:'#ef4444',data:hd}],'kWh',{stacked:true,
+    extra:i=>{const s=gd[i]+(hd[i]||0);return '<br><b>Summe: '+fmt(s)+' kWh</b>'+(hd[i]?'<br>Anteil Heizstab: '+fmt(hd[i]/s*100,0)+' %':'')+'<br>Gas: '+fmt(CALC.gas.months[keys[i]],1)+' m³';}});
+  const ys=Object.keys(g.years).sort().reverse();
+  let t='<table><tr><th>Jahr</th><th>Gas m³</th><th>Gas kWh</th><th>Heizstab kWh</th><th>Wärme gesamt kWh</th><th>Anteil Heizstab</th><th>Ø kWh/Tag ohne HS</th><th>Ø kWh/Tag mit HS</th></tr>';
+  ys.forEach(y=>{const gk=g.years[y],hs=h.years[y]||0,n=g.yDays[y],tot=gk+hs;
+    t+=`<tr><td>${y}${n<daysInYear(+y)?'*':''}</td><td>${fmt(CALC.gas.years[y],0)}</td><td>${fmt(gk,0)}</td><td>${hs?fmt(hs,0):'–'}</td><td><b>${fmt(tot,0)}</b></td><td>${hs?fmt(hs/tot*100,1)+' %':'–'}</td><td>${fmt(gk/n,1)}</td><td>${fmt(tot/n,1)}</td></tr>`;});
+  $('#heattable').innerHTML=t+'</table><p class="muted">* = Jahr unvollständig · HS = Heizstab (Werte erst ab Erfassung des Heizstab-Zählers)</p>';
+}
+
+/* ---------- Ablesungen ---------- */
+function renderForm(){
+  $('#newform').innerHTML=`<label class="full">Datum <input type="date" id="nDate" value="${todayLocal()}"></label>`+REAL.map(m=>{
+    const last=DB.readings.filter(r=>r.v[m.id]!=null).at(-1);
+    return `<label>${m.name} (${m.unit})<input type="text" inputmode="decimal" id="n_${m.id}" placeholder="zuletzt ${last?fmt(+last.v[m.id],1):'–'}"></label>`;}).join('');
+}
+function renderAbl(){
+  $('#cntAbl').textContent=DB.readings.length;
+  let t='<table><tr><th>Datum</th>'+REAL.map(m=>`<th>${m.name}<br><span class="muted">${m.unit}</span></th>`).join('')+'<th></th></tr>';
+  DB.readings.slice().reverse().forEach(r=>{t+='<tr><td>'+deDate(r.d)+'</td>';REAL.forEach(m=>{const v=r.v[m.id];const f=CALC[m.id].flags[r.d];t+=`<td class="${f||''}">${v!=null?fmt(+v,v>=1000?1:3):''}</td>`;});
+    t+=`<td><button class="b sec" style="padding:3px 8px" data-edit="${r.d}">✎</button> <button class="b del" data-del="${r.d}">✕</button></td></tr>`;});
+  $('#abltable').innerHTML=t+'</table>';
+  $('#abltable').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(!confirm('Ablesung vom '+deDate(b.dataset.del)+' löschen?'))return;DB.readings=DB.readings.filter(r=>r.d!==b.dataset.del);commit();});
+  $('#abltable').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const r=DB.readings.find(x=>x.d===b.dataset.edit);$('#nDate').value=r.d;REAL.forEach(m=>$('#n_'+m.id).value=r.v[m.id]!=null?String(r.v[m.id]).replace('.',','):'');window.scrollTo({top:0,behavior:'smooth'});$('#addmsg').className='msg';$('#addmsg').textContent='Ablesung vom '+deDate(r.d)+' geladen – ändern und speichern.';});
+}
+function addReading(){
+  const d=$('#nDate').value,msg=$('#addmsg');if(!d){msg.className='msg err';msg.textContent='Bitte Datum angeben.';return;}
+  const v={};const warn=[];let bad=false;
+  REAL.forEach(m=>{const raw=$('#n_'+m.id).value;if(raw.trim()==='')return;const x=num(raw);if(isNaN(x)){bad=true;return;}v[m.id]=x;
+    const prev=DB.readings.filter(r=>r.d<d&&r.v[m.id]!=null).at(-1);const hasChg=prev&&DB.changes.some(c=>c.meter===m.id&&c.date>=prev.d&&c.date<d);
+    if(prev&&x<+prev.v[m.id]&&!hasChg)warn.push(m.name);});
+  if(bad){msg.className='msg err';msg.textContent='Bitte nur Zahlen eingeben.';return;}
+  if(!Object.keys(v).length){msg.className='msg err';msg.textContent='Bitte mindestens einen Zählerstand eingeben.';return;}
+  if(warn.length&&!confirm('Achtung: '+warn.join(', ')+' ist kleiner als die vorherige Ablesung, aber kein Zählerwechsel erfasst.\nTrotzdem speichern? (Wert wird bis zur Erfassung des Wechsels ignoriert)'))return;
+  const ex=DB.readings.find(r=>r.d===d);
+  if(ex)Object.assign(ex.v,v); else DB.readings.push({d,v});
+  commit();msg.className='msg ok';msg.textContent='✔ Ablesung vom '+deDate(d)+' gespeichert.'+(fh?'':' Bitte oben „In iCloud sichern“ tippen.');
+}
+
+/* ---------- Zählerwechsel ---------- */
+function renderWech(){
+  $('#wMeter').innerHTML=REAL.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  let t='<table><tr><th>Zähler</th><th>Datum</th><th>Endstand alt</th><th>Start neu</th><th>Notiz</th><th></th></tr>';
+  DB.changes.slice().sort((a,b)=>a.date<b.date?1:-1).forEach(c=>{t+=`<tr><td>${MM[c.meter].name}</td><td>${deDate(c.date)}</td><td>${c.oldEnd!=null&&c.oldEnd!==''?fmt(+c.oldEnd,3):'(letzte Abl.)'}</td><td>${fmt(+c.newStart||0,3)}</td><td style="text-align:left;white-space:normal;min-width:140px">${c.note||''}</td><td><button class="b del" data-wdel="${c.meter}|${c.date}">✕</button></td></tr>`;});
+  $('#wtable').innerHTML=t+'</table>';
+  $('#wtable').querySelectorAll('[data-wdel]').forEach(b=>b.onclick=()=>{const [mm,dd]=b.dataset.wdel.split('|');if(!confirm('Zählerwechsel löschen?'))return;DB.changes=DB.changes.filter(c=>!(c.meter===mm&&c.date===dd));commit();});
+}
+function addChange(){
+  const o=num($('#wOld').value),n=num($('#wNew').value);
+  const c={meter:$('#wMeter').value,date:$('#wDate').value,oldEnd:isNaN(o)?null:o,newStart:isNaN(n)?0:n,note:$('#wNote').value};
+  if(!c.date){$('#wmsg').className='msg err';$('#wmsg').textContent='Bitte Datum angeben.';return;}
+  DB.changes.push(c);commit();$('#wmsg').className='msg ok';$('#wmsg').textContent='✔ Zählerwechsel gespeichert.';
+}
+
+/* ---------- Export ---------- */
+function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
+const stamp=()=>todayLocal();
+const json=()=>JSON.stringify(DB,null,1);
+function expCsv(){let s='Datum;'+REAL.map(m=>m.name+' ['+m.unit+']').join(';')+'\n';DB.readings.forEach(r=>{s+=deDate(r.d)+';'+REAL.map(m=>r.v[m.id]!=null?String(r.v[m.id]).replace('.',','):'').join(';')+'\n';});download('Zaehlerstaende_'+stamp()+'.csv','\ufeff'+s,'text/csv');}
+function expMonth(){const keys=new Set();METERS.forEach(m=>Object.keys(CALC[m.id].months).forEach(k=>keys.add(k)));let s='Monat;'+METERS.map(m=>m.name+' ['+m.unit+']').join(';')+'\n';
+  [...keys].sort().forEach(k=>{s+=k+';'+METERS.map(m=>{const v=CALC[m.id].months[k];return v!=null?v.toFixed(2).replace('.',','):'';}).join(';')+'\n';});download('Monatsverbraeuche_'+stamp()+'.csv','\ufeff'+s,'text/csv');}
+function expHtml(){const out=window.__SRC__.replace(/\/\*__DATA_START__\*\/[\s\S]*?\/\*__DATA_END__\*\//,()=>'/*__DATA_START__*/\nconst ORIGINAL = '+JSON.stringify(DB)+';\n/*__DATA_END__*/');
+  download('Zaehler_Dashboard_'+stamp()+'.html',out,'text/html');}
+
+/* ---------- iCloud-Datendatei ---------- */
+const FSA='showOpenFilePicker' in window;
+let fh=null, fhMod=0, dirty=false;
+const IDB={open(){return new Promise((res,rej)=>{const r=indexedDB.open('zaehlerDash',1);r.onupgradeneeded=()=>r.result.createObjectStore('h');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});},
+  async get(k){try{const db=await this.open();return await new Promise(res=>{const q=db.transaction('h').objectStore('h').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(null);});}catch(e){return null;}},
+  async set(k,v){try{const db=await this.open();await new Promise(res=>{const q=db.transaction('h','readwrite').objectStore('h').put(v,k);q.onsuccess=q.onerror=()=>res();});}catch(e){}}};
+function applyData(d){if(!d||!Array.isArray(d.readings))throw new Error('Keine gültige Datendatei');
+  if(DB.savedAt&&d.savedAt&&d.savedAt<DB.savedAt&&dirty&&!confirm('Die gewählte Datei ist ÄLTER ('+deTime(d.savedAt)+') als die Daten auf diesem Gerät ('+deTime(DB.savedAt)+').\nTrotzdem laden? Nicht gesicherte Einträge gehen dann verloren.'))return false;
+  DB=norm(d);save();renderAll();renderForm();return true;}
+function setSync(cls,text,btns){$('#syncbar').className=cls;$('#syncstate').innerHTML=text;$('#syncbtns').innerHTML='';
+  btns.forEach(([l,f])=>{const x=document.createElement('button');x.textContent=l;x.onclick=f;$('#syncbtns').appendChild(x);});}
+function syncUI(){
+  const st=DB.savedAt?' · Stand '+deTime(DB.savedAt):'';
+  if(fh){setSync(dirty?'warn':'ok',(dirty?'⚠ Nicht gespeichert – ':'☁ Verbunden: ')+'<b>'+fh.name+'</b>'+st,[['Neu laden',()=>fsaLoad(true)],['Trennen',()=>{fh=null;IDB.set('fh',null);syncUI();}]]);return;}
+  if(FSA){setSync(dirty?'warn':'',(dirty?'⚠ Änderungen nur lokal. ':'')+'zaehler_daten.json im iCloud Drive verbinden – dann wird automatisch dort gespeichert:',[['Datei verbinden',fsaOpen],['Neue Datendatei anlegen',fsaNew]]);return;}
+  if(dirty)setSync('warn','⚠ Neue Einträge noch nicht in iCloud gesichert'+st,[['💾 In iCloud sichern',shareSave]]);
+  else setSync(DB.readings.length?'ok':'',DB.readings.length?'☁ Daten'+st:'Bitte Daten aus iCloud laden',[['📂 Laden',pickFile],['💾 In iCloud sichern',shareSave]]);
+}
+const pickFile=()=>$('#impJson').click();
+async function fsaOpen(){try{const [h]=await showOpenFilePicker();fh=h;fhMod=0;await IDB.set('fh',h);await fsaLoad(true);}catch(e){if(e.name!=='AbortError')alert('Fehler: '+e.message);}}
+async function fsaNew(){try{fh=await showSaveFilePicker({suggestedName:'zaehler_daten.json'});fhMod=0;await IDB.set('fh',fh);await fsaWrite(true);}catch(e){if(e.name!=='AbortError')alert('Fehler: '+e.message);}}
+async function perm(h){const o={mode:'readwrite'};if(await h.queryPermission(o)==='granted')return true;return (await h.requestPermission(o))==='granted';}
+async function fsaLoad(force){if(!fh)return;try{if(!await perm(fh))return;const f=await fh.getFile();if(!force&&f.lastModified===fhMod)return;
+  const txt=await f.text();if(txt.trim()){dirty=false;applyData(JSON.parse(txt));}fhMod=f.lastModified;dirty=false;syncUI();}catch(e){alert('Datendatei konnte nicht gelesen werden: '+e.message);}}
+async function fsaWrite(skipCheck){if(!fh)return;try{if(!await perm(fh))return;
+  if(!skipCheck){const f=await fh.getFile();if(fhMod&&f.lastModified>fhMod&&!confirm('Die Datendatei wurde zwischenzeitlich auf einem anderen Gerät geändert.\nOK = trotzdem überschreiben\nAbbrechen = neu laden (deine letzte Eingabe danach bitte wiederholen)')){await fsaLoad(true);return;}}
+  const w=await fh.createWritable();await w.write(json());await w.close();fhMod=(await fh.getFile()).lastModified;dirty=false;syncUI();}catch(e){dirty=true;syncUI();alert('Speichern in Datendatei fehlgeschlagen: '+e.message);}}
+async function shareSave(){const file=new File([json()],'zaehler_daten.json',{type:'application/json'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});dirty=false;syncUI();return;}}catch(e){if(e.name==='AbortError')return;}
+  download('zaehler_daten.json',json(),'application/json');dirty=false;syncUI();}
+function cloudAfterChange(){dirty=true;DB.savedAt=new Date().toISOString();save();if(fh)fsaWrite();else syncUI();renderDash();}
+async function cloudInit(){
+  if(FSA){const h=await IDB.get('fh');if(h){fh=h;try{if(await h.queryPermission({mode:'readwrite'})==='granted'){await fsaLoad(true);return;}}catch(e){}
+    setSync('','☁ <b>'+h.name+'</b> – Zugriff bestätigen, um die aktuellen Daten zu laden:',[['Verbinden & laden',()=>fsaLoad(true)],['Andere Datei',fsaOpen]]);return;}}
+  syncUI();
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&fh&&!dirty)fsaLoad(false);});
+
+/* ---------- Ablauf ---------- */
+let active='dash';
+function renderActive(){if(!DB.readings.length)return;if(active==='verb')renderVerb();if(active==='vgl')renderVgl();if(active==='tag')renderTag();if(active==='pv')renderPv();if(active==='heat')renderHeat();}
+function renderAll(){compute();renderDash();
+  const vm=$('#verbMeter').value,gm=$('#vglMeter').value,tmm=$('#tagMeter').value;
+  meterOptions('#verbMeter');meterOptions('#vglMeter');meterOptions('#tagMeter',true);
+  $('#verbMeter').value=vm||'strom';$('#vglMeter').value=gm||'waerme';$('#tagMeter').value=tmm||'gas';
+  const vf=$('#verbFrom').value,tf=$('#tagFrom').value,hf=$('#heatFrom').value;const ys=allYears();const def=ys[Math.max(0,ys.length-(isMobile()?2:4))];
+  yearOptions('#verbFrom',vf||def);yearOptions('#tagFrom',tf||def);yearOptions('#heatFrom',hf||def);
+  renderAbl();renderWech();$('#sGas').value=String(DB.settings.gasFactor).replace('.',',');renderActive();}
+function commit(){renderAll();renderForm();cloudAfterChange();}
+
+window.__SRC__='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+load();
+$('#nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#nav .active').classList.remove('active');b.classList.add('active');b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('#t-'+b.dataset.t).classList.add('active');active=b.dataset.t;renderActive();});
+['#verbMeter','#verbRes','#verbFrom'].forEach(s=>$(s).onchange=renderVerb);
+$('#vglMeter').onchange=renderVgl;$('#vglCum').onchange=renderVgl;
+['#tagMeter','#tagFrom'].forEach(s=>$(s).onchange=renderTag);
+['#heatFrom','#heatHs'].forEach(s=>$(s).onchange=renderHeat);
+$('#btnAdd').onclick=addReading;$('#btnClear').onclick=()=>{renderForm();$('#addmsg').textContent='';};$('#btnW').onclick=addChange;
+$('#btnEmptyLoad').onclick=()=>FSA?fsaOpen():pickFile();
+$('#btnExpJson').onclick=()=>download('zaehler_daten.json',json(),'application/json');
+$('#impJson').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{if(applyData(JSON.parse(r.result))){dirty=false;syncUI();$('#datamsg').className='msg ok';$('#datamsg').textContent='✔ Daten geladen.';}}catch(x){alert('Datei konnte nicht gelesen werden – bitte zaehler_daten.json wählen.');}e.target.value='';};r.readAsText(f);};
+$('#btnExpCsv').onclick=expCsv;$('#btnExpMonth').onclick=expMonth;$('#btnHtml').onclick=expHtml;
+$('#btnReset').onclick=()=>{if(!confirm('Lokale Kopie auf diesem Gerät löschen? (Die iCloud-Datei bleibt unverändert)'))return;localStorage.removeItem(LS_KEY);localStorage.removeItem('zaehlerDashboard_v2');DB=norm(clone(ORIGINAL));dirty=false;renderAll();renderForm();syncUI();};
+$('#sGas').onchange=()=>{const v=num($('#sGas').value);DB.settings.gasFactor=isNaN(v)||v<=0?10.3:v;commit();};
+let rt,lw=window.innerWidth;window.onresize=()=>{if(window.innerWidth===lw)return;lw=window.innerWidth;clearTimeout(rt);rt=setTimeout(renderActive,150);};
+renderAll();renderForm();cloudInit();
+</script>
+</body>
+</html>
